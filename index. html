@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>شبیه ساز رولت روسی</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      font-family: Vazirmatn, sans-serif;
+      --bg:#0f1724;
+      --card:#0b1220;
+      --text:#e6eef8;
+    }
+    html,body{
+      height:100%;margin:0;
+      background:linear-gradient(180deg,#071021 0%,#07152a 100%);
+      color:var(--text);
+      display:flex;align-items:center;justify-content:center;
+      padding:20px;
+    }
+    .container{
+      width:100%;max-width:940px;
+      background:rgba(255,255,255,0.03);
+      border-radius:12px;
+      padding:18px;
+      box-shadow:0 8px 30px rgba(2,6,23,0.6);
+    }
+    h1{margin:0 0 8px 0;font-size:20px;text-align:center}
+
+    .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:14px}
+    button{
+      background:#122434;border:1px solid rgba(255,255,255,0.06);
+      color:var(--text);padding:10px 14px;border-radius:10px;
+      cursor:pointer;font-size:14px;transition:transform .1s;
+    }
+    button:active{transform:translateY(1px)}
+
+    .info{display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:12px}
+    .info div{background:rgba(255,255,255,0.02);padding:8px 12px;border-radius:10px;font-size:14px}
+
+    .wheel{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;padding:10px}
+
+    .bullet{
+      width:72px;height:72px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-weight:700;color:#fff;
+      transition:transform 280ms ease,box-shadow 280ms ease,opacity 280ms ease;
+    }
+    .bullet.black{background:#111;border:2px solid rgba(255,255,255,0.05)}
+    .bullet.red{background:#e03a3a}
+    .bullet.empty{background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.5)}
+
+    .picked{
+      transform:scale(1.18);
+      box-shadow:0 10px 30px rgba(0,0,0,0.6);
+      animation: stressPulse 0.25s linear infinite;
+    }
+
+    @keyframes stressPulse {
+      0% { transform: scale(1.18) translate(1px, -1px); }
+      25% { transform: scale(1.17) translate(-1px, 1px); }
+      50% { transform: scale(1.18) translate(1px, 1px); }
+      75% { transform: scale(1.17) translate(-1px, -1px); }
+      100% { transform: scale(1.18) translate(1px, -1px); }
+    }
+
+    .shake{
+      animation: shakeScreen 0.35s ease;
+    }
+    @keyframes shakeScreen {
+      0% { transform: translate(0px, 0px); }
+      25% { transform: translate(-6px, 3px); }
+      50% { transform: translate(5px, -4px); }
+      75% { transform: translate(-4px, 3px); }
+      100% { transform: translate(0px, 0px); }
+    }
+
+    .message{min-height:28px;text-align:center;font-size:16px;margin-top:8px}
+    .small{font-size:13px;opacity:0.85}
+
+    input[type=number]{
+      width:80px;padding:8px;border-radius:8px;
+      border:1px solid rgba(255,255,255,0.06);
+      background:transparent;color:var(--text);
+    }
+
+    .row{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap}
+    footer{margin-top:12px;text-align:center;opacity:0.75;font-size:12px}
+
+    @media(max-width:520px){.bullet{width:56px;height:56px}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>شبیه ساز رولت روسی</h1>
+
+    <div class="controls">
+      <button id="spinBtn">انتخاب شانسی</button>
+
+      <div class="row">
+        <label class="small">تعداد تیر ها</label>
+        <input id="countInput" type="number" min="1" value="4" />
+        <button id="setCount">اعمال</button>
+      </div>
+
+      <div class="row">
+        <label class="small">تعداد تیرهای قرمز</label>
+        <input id="redInput" type="number" min="0" value="1" />
+        <button id="setRed">اعمال</button>
+      </div>
+
+      <button id="resetBtn">ریست</button>
+    </div>
+
+    <div class="info">
+      <div id="stats" class="small">تعداد کل تیر ها 4  تعداد تیر قرمز 1</div>
+      <div class="small" id="lastPick">آخرین انتخاب هنوز انجام نشده</div>
+    </div>
+
+    <div class="wheel" id="wheel" aria-live="polite"></div>
+
+    <div class="message" id="message"></div>
+
+    <footer>این یک شبیه ساز بازی است</footer>
+  </div>
+
+  <script>
+    let total = 4
+    let redCount = 1
+
+    const wheel = document.getElementById('wheel')
+    const stats = document.getElementById('stats')
+    const message = document.getElementById('message')
+    const lastPick = document.getElementById('lastPick')
+    const countInput = document.getElementById('countInput')
+    const redInput = document.getElementById('redInput')
+
+    function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+
+    function makeBullets(total,redCount){
+      const arr = new Array(total).fill('black')
+      redCount = clamp(redCount,0,total)
+      for(let i=0;i<redCount;i++) arr[i] = 'red'
+      for(let i=arr.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1))
+        ;[arr[i],arr[j]]=[arr[j],arr[i]]
+      }
+      return arr
+    }
+
+    let bullets = makeBullets(total,redCount)
+    let busy = false
+
+    function render(){
+      wheel.innerHTML = ''
+      bullets.forEach((b,i)=>{
+        const el = document.createElement('div')
+        el.className = 'bullet '+(b==='red'?'red':(b==='black'?'black':'empty'))
+        el.dataset.index = i
+        el.textContent = (i+1)
+        wheel.appendChild(el)
+      })
+      stats.textContent = 'تعداد کل تیر ها '+bullets.length+'  تعداد تیر قرمز '+bullets.filter(x=>x==='red').length
+    }
+
+    function pickRandom(){
+      if(busy || bullets.length===0) return
+      busy = true
+
+      document.body.classList.add('shake')  
+      setTimeout(()=>document.body.classList.remove('shake'),350)
+
+      message.textContent = 'در حال انتخاب...'
+
+      const idx = Math.floor(Math.random()*bullets.length)
+      const nodes = Array.from(document.querySelectorAll('.bullet'))
+      let highlight = 0
+      const rounds = 18 + Math.floor(Math.random()*10)
+      const stepTime = 70
+
+      const timer = setInterval(()=>{
+        nodes.forEach(n=>n.classList.remove('picked'))
+        nodes[highlight % nodes.length].classList.add('picked')
+        highlight++
+        if(highlight>rounds){
+          clearInterval(timer)
+          nodes.forEach(n=>n.classList.remove('picked'))
+
+          const node = nodes[idx]
+          node.classList.add('picked')
+
+          const kind = bullets[idx]
+          message.textContent = kind==='red' ? 'قرمز انتخاب شد' : 'سیاه انتخاب شد'
+          lastPick.textContent = 'آخرین انتخاب تیر شماره '+(idx+1)
+
+          setTimeout(()=>{
+            bullets.splice(idx,1)
+            render()
+          },500)
+
+          busy = false
+        }
+      },stepTime)
+    }
+
+    document.getElementById('spinBtn').addEventListener('click',pickRandom)
+
+    document.getElementById('setCount').addEventListener('click',()=>{
+      total = clamp(parseInt(countInput.value)||1,1,100)
+      redCount = clamp(redCount,0,total)
+      bullets = makeBullets(total,redCount)
+      render()
+      message.textContent = 'تعداد تیر ها به روز شد'
+    })
+
+    document.getElementById('setRed').addEventListener('click',()=>{
+      redCount = clamp(parseInt(redInput.value)||0,0,total)
+      bullets = makeBullets(total,redCount)
+      render()
+      message.textContent = 'تعداد تیرهای قرمز به روز شد'
+    })
+
+    document.getElementById('resetBtn').addEventListener('click',()=>{
+      total = 4
+      redCount = 1
+      countInput.value = 4
+      redInput.value = 1
+      bullets = makeBullets(total,redCount)
+      render()
+      lastPick.textContent = 'آخرین انتخاب هنوز انجام نشده'
+      message.textContent = 'ریست شد'
+    })
+
+    countInput.value = total
+    redInput.value = redCount
+    render()
+  </script>
+</body>
+</html>
